@@ -1,0 +1,11 @@
+.cache/
+.undodir/
+Session.vim
+ax-*d*
+axctl
+axctl-v2
+axinit
+codegen
+vendor
+deps/
+venv/
