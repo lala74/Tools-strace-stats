@@ -9,3 +9,5 @@ codegen
 vendor
 deps/
 venv/
+*log
+*out
