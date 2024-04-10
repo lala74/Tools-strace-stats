@@ -4,120 +4,11 @@
 # All rights reserved.
 import numpy as np
 import matplotlib.pyplot as plt
-
-"""\
-NAME
-    stracestats - summarize and visualize data in strace output
-
-SYNOPSIS
-    stracestats STRACE_OUTPUT_FILE
-
-DESCRIPTION
-    This script reads in output from strace and prints out statistics for each 
-    system call, such as:
-
-        * occurrences (number of times called, percentage of overall calls 
-          made)
-
-        * time spent in the call (total time, percentage of system call time, 
-          percentage of wall time)
-
-        * average call time and standard deviation
-
-        * median call time
-
-        * a 10-bin histogram of call times, from min to max
-
-    The results are sorted by the total time spent in each system call.  There 
-    are options for plotting the call time histograms, too.
-
-    The STRACE_OUTPUT_FILE must be from an strace run with both timestamps and 
-    time-in-call recorded, e.g.:
-
-        strace -tt -T -o STRACE_OUTPUT_FILE ...
-
-    The -t and -ttt alternatives to -tt, for different timestamp formats, are 
-    also acceptable.  This works with any combination of -f, -ff and -o, too 
-    (i.e. the output may have extra process id info prepended).
-
-    If STRACE_OUTPUT_FILE is not given, this script reads from stdin.
-
-OPTIONS
-    --breakdown-by-arg
-        Treat calls with different numeric values for their first argument as 
-        separate system calls (i.e. record separate statistics for each unique 
-        first argument value, rather than one set of statistics for the call 
-        overall).
-
-        This is most helpful when the first argument is a file descriptor.  
-        E.g. if STRACE_OUTPUT_FILE describes reading from two files with 
-        descriptors 3 and 4, this option will print out separate stats for 
-        \`read(3' and \`read(4'.
-
-    --show-plots
-        Display plots of the statistics (requires matplotlib and an X display). 
-        See also --plot.
-
-    --save-plots
-        Save plots of the statistics (requires matplotlib and an X display). 
-        See also --plot.
-
-    --plot SYSTEM_CALL...
-        Specify which system calls to plot when using --show-plots and/or 
-        --save-plots.  This should be a space- or comma-separate listed of 
-        system call names (including the open parenthesis and first arg, if 
-        using --breakdown-by-arg), or one of the following special values:
-
-        * ALL
-
-          Plot all system calls.
-
-        * TOPX, where X is a number
-
-          Plot the X calls in which the most time is spent.
-
-        The default is TOP3.
-
-    --title TITLE
-        Add a title to the plots (if applicable) and their filenames (if 
-        saved).  The title on the plots will still be appended with the 
-        specific system call name and some extra text, and title in the 
-        filename will have spaces replaced by underscores.
-
-    -h, --help
-        Print this help.
-
-REQUIREMENTS
-    python 2.7 or greater
-    numpy
-    matplotlib (if plotting)
-
-BUGS/TODO
-    n/a
-
-AUTHOR
-    Copyright (c) 2012-2013, John Brunelle
-"""
-
-
+import argparse
 import sys, getopt, datetime, re, socket
 
 #datetime.timedelta.total_seconds introduced in 2.7
 #datetime.strptime introduced in 2.5
-if sys.version_info < (2,7):
-	msg = "*** ERROR *** this script requires python >= 2.7"
-	if socket.gethostname().endswith('.rc.fas.harvard.edu'): msg += " (module load hpc/python-2.7.1_full_stack)"
-	sys.stderr.write(msg+'\n')
-	sys.exit(1)
-
-try:
-	import numpy as np
-except ImportError:
-	msg = "*** ERROR *** this script requires numpy"
-	if socket.gethostname().endswith('.rc.fas.harvard.edu'): msg += " (module load hpc/python-2.7.1_full_stack)"
-	sys.stderr.write(msg+'\n')
-	sys.exit(1)
-
 
 breakdown_by_arg = False
 show_plots = False
@@ -130,41 +21,56 @@ title = None
 
 debug = False
 
-try:
-	opts, args = getopt.gnu_getopt(sys.argv[1:], 'h', ('breakdown-by-arg','show-plots','save-plots','plot=','title=', 'help',))
-except (getopt.GetoptError, e):
-	sys.stderr.write("*** ERROR **** unable to process command line options: %s\n" % e)
-	sys.exit(1)
-for opt, optarg in opts:
-	if opt in ('--breakdown-by-arg',):
-		breakdown_by_arg = True
 
-	elif opt=='--show-plots':
-		show_plots = True
-	elif opt=='--save-plots':
-		save_plots = True
-	elif opt=='--plot':
-		for p in re.split('[ ,]', optarg):
-			if p=='':
-				continue
-			if p=='ALL':
-				plot_all = True
-				break
-			if p.startswith('TOP'):
-				try:
-					plot_topx = max(plot_topx, int(p.split('TOP')[1]))
-				except ValueError:
-					sys.stderr.write("*** ERROR *** [%s] in not a valid --plot value\n" % p)
-					sys.exit(1)
-				#(don't break; allow additional specific plots)
-			else:
-				plot.append(p)
-	elif opt=='--title':
-		title = optarg
 
-	elif opt in ('-h', '--help'):
-		sys.stdout.write(__doc__)
-		sys.exit(0)
+
+parser = argparse.ArgumentParser(prog='stracestats', description='Does analysis and pattern matching on logs')
+parser.add_argument('-b', '--breakdown_by_arg', type=bool, default=False, help='aa')
+parser.add_argument('-p', '--show_plots', type=bool, default=False, help='bb')
+parser.add_argument('-s', '--save_plots', type=bool, default=False, help='cc')
+parser.add_argument('-f', '--file', type=str, help='Strace output file')
+args = parser.parse_args()
+
+breakdown_by_arg = args.breakdown_by_arg
+show_plots = args.show_plots
+save_plots = args.save_plots
+filename = args.file
+
+#  try:
+#      opts, args = getopt.gnu_getopt(sys.argv[1:], 'h', ('breakdown-by-arg','show-plots','save-plots','plot=','title=', 'help',))
+#  except (getopt.GetoptError, e):
+#      sys.stderr.write("*** ERROR **** unable to process command line options: %s\n" % e)
+#      sys.exit(1)
+#  for opt, optarg in opts:
+#      if opt in ('--breakdown-by-arg',):
+#          breakdown_by_arg = True
+#  
+#      elif opt=='--show-plots':
+#          show_plots = True
+#      elif opt=='--save-plots':
+#          save_plots = True
+#      elif opt=='--plot':
+#          for p in re.split('[ ,]', optarg):
+#              if p=='':
+#                  continue
+#              if p=='ALL':
+#                  plot_all = True
+#                  break
+#              if p.startswith('TOP'):
+#                  try:
+#                      plot_topx = max(plot_topx, int(p.split('TOP')[1]))
+#                  except ValueError:
+#                      sys.stderr.write("*** ERROR *** [%s] in not a valid --plot value\n" % p)
+#                      sys.exit(1)
+#                  #(don't break; allow additional specific plots)
+#              else:
+#                  plot.append(p)
+#      elif opt=='--title':
+#          title = optarg
+#
+#      elif opt in ('-h', '--help'):
+#          sys.stdout.write(__doc__)
+#          sys.exit(0)
 
 plotting = (show_plots or save_plots)
 
@@ -184,8 +90,8 @@ if plotting:
 		sys.stderr.write(msg+'\n')
 		sys.exit(1)
 
-if len(args)==0:
-	args.append('-')
+#  if len(args)==0:
+#      args.append('-')
 
 
 #---
@@ -220,97 +126,91 @@ best_chance_time_format = 'tt'
 
 
 #--- collect data
+f = open(filename)
+for line in f.readlines():
+    line = line.strip()
 
-for filename in args:
-	if filename=='-':
-		f = sys.stdin
-	else:
-		f = open(filename)
-
-	for line in f.readlines():
-		line = line.strip()
-
-		if debug:
-			print(line)
+    if debug:
+        print(line)
 
 
-		#parse
+    #parse
 
-		m = re_entry_general.match(line)
-		if not m:
-			if not (line.startswith('Process ') or line.endswith('<unfinished ...>') or line.endswith('= ?') or '--- SIG' in line or '+++ exited with' in line):
-				sys.stderr.write("WARNING: unable to parse line, skipping: %s\n" % line)
-			continue
-		offset = 2  #helps with indexing as I add regex subgroups
+    m = re_entry_general.match(line)
+    if not m:
+        if not (line.startswith('Process ') or line.endswith('<unfinished ...>') or line.endswith('= ?') or '--- SIG' in line or '+++ exited with' in line):
+            sys.stderr.write("WARNING: unable to parse line, skipping: %s\n" % line)
+        continue
+    offset = 2  #helps with indexing as I add regex subgroups
 
-		if debug:
-			print('    %s' % (m.groups(None),))
+    if debug:
+        print('    %s' % (m.groups(None),))
 
-		abststr = m.groups(None)[offset]
+    abststr = m.groups(None)[offset]
 
-		abstd = None
-		try:
-			abstd = parse_time_functions[best_chance_time_format](abststr)
-		except ValueError:
-			for format in ['tt', 't', 'ttt']:
-				try:
-					abstd = parse_time_functions[format](abststr)
-					best_change_time_format = format
-				except ValueError:
-					continue
-		if abstd is None:
-			sys.stderr.write("WARNING: unable to parse time, skipping: %s\n" % abststr)
+    abstd = None
+    try:
+        abstd = parse_time_functions[best_chance_time_format](abststr)
+    except ValueError:
+        for format in ['tt', 't', 'ttt']:
+            try:
+                abstd = parse_time_functions[format](abststr)
+                best_change_time_format = format
+            except ValueError:
+                continue
+    if abstd is None:
+        sys.stderr.write("WARNING: unable to parse time, skipping: %s\n" % abststr)
 
-		if tstart is None:
-			tstart = abstd
-		tend = abstd
+    if tstart is None:
+        tstart = abstd
+    tend = abstd
 
-		syscall = m.groups(None)[1+offset]
-		if breakdown_by_arg:
-			m2 = re_numeric_first_arg.search(m.groups(None)[2+offset])
-			if m2 is not None:
-				syscall = '%s(%s' % (syscall, m2.group(0)[1:-1])
+    syscall = m.groups(None)[1+offset]
+    if breakdown_by_arg:
+        m2 = re_numeric_first_arg.search(m.groups(None)[2+offset])
+        if m2 is not None:
+            syscall = '%s(%s' % (syscall, m2.group(0)[1:-1])
 
-		retval = m.groups(None)[3+offset]
-		if not retval.isdigit():
-			try:
-				retvall = retval.split()
-				if retvall[1].startswith('E'):
-					retval = retvall[1]
-				else:
-					retval = retvall[0]
-			except Exception:
-				pass
+    retval = m.groups(None)[3+offset]
+    if not retval.isdigit():
+        try:
+            retvall = retval.split()
+            if retvall[1].startswith('E'):
+                retval = retvall[1]
+            else:
+                retval = retvall[0]
+        except Exception:
+            pass
 
-		try:
-			t = float(m.groups(None)[4+offset])
-		except ValueError:
-			sys.stderr.write("WARNING: unable to parse a time, assuming 0.0s: %s\n" % line)
-			t = 0.0
-
-
-		if debug:
-			print('    abst   :', abststr, '(parsed as: %s)' % abstd)
-			print('    syscall:', syscall)
-			print('    retval :', retval)
-			print('    t      :', t)
-			print()
+    try:
+        t = float(m.groups(None)[4+offset])
+    except ValueError:
+        sys.stderr.write("WARNING: unable to parse a time, assuming 0.0s: %s\n" % line)
+        t = 0.0
 
 
-		# store
+    if debug:
+        print('    abst   :', abststr, '(parsed as: %s)' % abstd)
+        print('    syscall:', syscall)
+        print('    retval :', retval)
+        print('    t      :', t)
+        print()
 
-		try:
-			d = syscalls[syscall]
-		except KeyError:
-			d = {
-				#these lists should all be the same size -- one entry for each strace line
-				'retval': [],
-				't'     : [],
-			}
-			syscalls[syscall] = d
 
-		d['retval'].append(retval)
-		d['t'     ].append(t     )
+    # store
+
+    try:
+        d = syscalls[syscall]
+    except KeyError:
+        d = {
+            #these lists should all be the same size -- one entry for each strace line
+            'retval': [],
+            't'     : [],
+        }
+        syscalls[syscall] = d
+
+    d['retval'].append(retval)
+    d['t'     ].append(t     )
 
 
 #--- summarize
