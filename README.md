@@ -1,4 +1,4 @@
-strace is an invaluable tool for figuring out what a Linux process is doing. 
+strace is an invaluable tool for figuring out what a Linux process is doing.
 With its options for logging how much time is spent in each system call, it's 
 also an easy way to profile i/o-bound programs and components in distributed 
 systems.  However, sometimes it can be a challenge getting the big picture from 
