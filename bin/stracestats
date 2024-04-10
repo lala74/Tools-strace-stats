@@ -2,6 +2,8 @@
 
 # Copyright (c) 2012-2013, John A. Brunelle
 # All rights reserved.
+import numpy as np
+import matplotlib.pyplot as plt
 
 """\
 NAME
@@ -130,7 +132,7 @@ debug = False
 
 try:
 	opts, args = getopt.gnu_getopt(sys.argv[1:], 'h', ('breakdown-by-arg','show-plots','save-plots','plot=','title=', 'help',))
-except getopt.GetoptError, e:
+except (getopt.GetoptError, e):
 	sys.stderr.write("*** ERROR **** unable to process command line options: %s\n" % e)
 	sys.exit(1)
 for opt, optarg in opts:
@@ -229,7 +231,7 @@ for filename in args:
 		line = line.strip()
 
 		if debug:
-			print line
+			print(line)
 
 
 		#parse
@@ -242,7 +244,7 @@ for filename in args:
 		offset = 2  #helps with indexing as I add regex subgroups
 
 		if debug:
-			print '    %s' % (m.groups(None),)
+			print('    %s' % (m.groups(None),))
 
 		abststr = m.groups(None)[offset]
 
@@ -288,11 +290,11 @@ for filename in args:
 
 
 		if debug:
-			print '    abst   :', abststr, '(parsed as: %s)' % abstd
-			print '    syscall:', syscall
-			print '    retval :', retval
-			print '    t      :', t
-			print
+			print('    abst   :', abststr, '(parsed as: %s)' % abstd)
+			print('    syscall:', syscall)
+			print('    retval :', retval)
+			print('    t      :', t)
+			print()
 
 
 		# store
@@ -359,24 +361,24 @@ syscallsumms = sorted(syscallsumms, key = lambda x: x['tot time'])
 for i, sd in enumerate(syscallsumms):
 	syscall = sd['syscall']
 
-	print syscall
+	print(syscall)
 
 	k = 'num calls'
-	print '\t%13s: %*d  %2d%% of syscalls' % (k, twidth, sd[k], int(round(float(sd[k])/all_num_calls*100)))
+	print('\t%13s: %*d  %2d%% of syscalls' % (k, twidth, sd[k], int(round(float(sd[k])/all_num_calls*100))))
 
 	k = 'tot time'
-	print '\t%13s: %*.6f  %2d%% of syscall time, %2d%% of wall time' % (k, twidth, sd[k], int(round(sd[k]/all_tot_sys_time*100)), int(round(sd[k]/all_tot_wall_time*100)))
+	print('\t%13s: %*.6f  %2d%% of syscall time, %2d%% of wall time' % (k, twidth, sd[k], int(round(sd[k]/all_tot_sys_time*100)), int(round(sd[k]/all_tot_wall_time*100))))
 
-	print '\t%13s: %*.6f' % ('avg call time', twidth, sd['avg call time'])
-	print '\t%13s: %*.6f' % (          '+/-', twidth, sd['std call time'])
+	print('\t%13s: %*.6f' % ('avg call time', twidth, sd['avg call time']))
+	print('\t%13s: %*.6f' % (          '+/-', twidth, sd['std call time']))
 
 	k = 'med call time'
-	print '\t%13s: %*.6f' % (k, twidth, sd[k])
+	print('\t%13s: %*.6f' % (k, twidth, sd[k]))
 
 	hist, hist_bin_edges = np.histogram(syscalls[syscall]['t'], 10)
 
-	print
-	print '\t%13s: %*.6f %s %*.6f' % ('min/hist/max', twidth, sd['min call time'], hist, twidth, sd['max call time'])
+	print()
+	print('\t%13s: %*.6f %s %*.6f' % ('min/hist/max', twidth, sd['min call time'], hist, twidth, sd['max call time']))
 
 	if plotting:
 		if plot_all or (len(syscallsumms)-i <= plot_topx) or (syscall in plot):
@@ -405,9 +407,9 @@ for i, sd in enumerate(syscallsumms):
 						titletmp = ''
 					titletmp = '%s%s.png' % (titletmp, syscall.replace('(','-'))
 					fig.savefig(titletmp)
-					print '\t%13s: %s' % ('saved plot', titletmp)
+					print('\t%13s: %s' % ('saved plot', titletmp))
 
-	print
+	print()
 
 if show_plots:
 	plt.show()
